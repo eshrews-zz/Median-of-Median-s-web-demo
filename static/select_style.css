@@ -1,0 +1,28 @@
+
+
+/* page layout */
+body {
+    font-family:'Bookman Old Style',Bookman,'URW Bookman L','Palatino Linotype',serif;
+    font-size: 17px;
+    background-color: #F0F0F0;
+    color: #000;
+    margin: 0;
+    padding: 0;
+}
+
+div.document {
+    width: 940px;
+    margin: 30px auto 0 auto;
+    background-color: white;
+}
+
+div.body {
+    color: #3E4349;
+    padding: 0 30px 0 30px;
+}
+
+div.canvas {
+    width: 800px;
+    margin: 0 auto; 
+}
+

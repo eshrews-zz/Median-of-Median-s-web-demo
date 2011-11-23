@@ -1,0 +1,23 @@
+{% extends "select/layout.html" %}
+{% block head_includes %}
+<title>Element Select Visualization</title>
+<meta http-equiv="Cache-control" content="no-cache" />
+<script type="text/javascript" src="{{ url_for('static', filename='select/jquery-1.6.4.min.js') }}" ></script>
+<script type="text/javascript" src="{{ url_for('static', filename='select/select.js') }}" >
+</script>
+{% endblock %}
+{% block body %}
+<div class="document">
+    <div class="canvas">
+        <canvas id="select_canvas" height="500" width="800"></canvas>
+    </div>
+    <div class="document_wrapper">
+        <button id="canvas_button">Animate</button>
+        <div class="body">
+            
+            <p>Incididunt irony fanny pack sustainable quinoa next level. Readymade fanny pack lo-fi keytar sartorial artisan. High life craft beer biodiesel, american apparel messenger bag terry richardson gluten-free labore. Officia next level irure, dolore assumenda blog adipisicing ullamco twee velit. Consequat salvia accusamus velit, mollit nostrud brunch. Cliche delectus cred wes anderson labore brooklyn. Quinoa ut hoodie ex put a bird on it master cleanse cred nisi, vero trust fund echo park bicycle rights stumptown lo-fi organic.</p>
+            <p>Ethical esse tofu fanny pack. Magna 8-bit vegan culpa. Seitan DIY food truck next level freegan labore. Banksy scenester veniam williamsburg stumptown, thundercats art party exercitation velit tattooed whatever do nisi. Nisi food truck ullamco jean shorts vinyl laborum occaecat tumblr twee pitchfork, mixtape elit esse cred. Vegan tempor put a bird on it esse. Dolore incididunt helvetica, locavore laborum before they sold out cliche nisi non consequat retro VHS consectetur tempor.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
