@@ -16,7 +16,7 @@ var DELAY = 100;
 var ctx;
 var g_ElementCount = 126;
 var g_Elements = [];
-var g_SelectIndex = 0;
+var g_SelectIndex = 100;
 var g_Pivot = [];
 var g_Bounds = [];
 var text_stack = [];
@@ -29,6 +29,13 @@ var elmWidth
 var totalWidth;
 var initX;
 
+
+function State(start, end, depth, k) {
+    this.start = start;
+    this.end = end;
+    this.depth = depth;
+    this.k = k;
+}
 
 function calculate_layout() {
     elmWidth = Math.floor(WIDTH / g_Elements.length);
@@ -62,97 +69,106 @@ function runCode() {
 
     calculate_layout();
     draw_initial();
-    setTimeout(function() { selectStart(0 , g_ElementCount, 0, g_SelectIndex);},
-            DELAY);
+
+    var initState = new State(0, g_ElementCount, 0, g_SelectIndex);
+
+    setTimeout(function() { selectStart(initState);}, DELAY);
 }
 
-function selectStart(start, end, depth, k) {
-    setTimeout(function() { selectGroupOfFive(start, end, 0, depth, 
-            k); }, DELAY);
+function selectStart(state) {
+    setTimeout(function() { selectGroupOfFive(state, 0); }, DELAY);
 }
 
-function selectGroupOfFive(start, end, iterNum, depth, k) {
-    var place = start + iterNum * 5;
-    if(place < end - 4 || (iterNum === 0 && (end - start > 1))) {
-        if(depth === 0 && iterNum === 0) {
-            colorInactive(start, end);
+function selectGroupOfFive(curState, iterNum) {
+    var place = curState.start + iterNum * 5;
+    if(place < curState.end - 4 || (iterNum === 0 && (curState.end - curState.start > 1))) {
+        if(curState.depth === 0 && iterNum === 0) {
+            colorInactive(curState.start, curState.end);
         }
-        colorSelected(start, end, iterNum, depth, k);
+        colorSelected(curState, iterNum);
     }
-    else if((end - start) === 1) {
+    else if((curState.end - curState.start) === 1) {
         if(g_Bounds.length === 0) {
-            colorInactive(start, end);
-            drawBar(start, victory[0]);
-            alert(g_Elements[start]);
+            colorInactive(curState.start, curState.end);
+            drawBar(curState.start, victory[0]);
+            alert(g_Elements[curState.start]);
             return;
         }
-        var b = g_Bounds.pop();
-        var s = b[0];
-        var e = b[1];
-        var d = b[3];
-        var pk = b[4];
-        runPivot(start, s, e, d, pk);
+        var poppedState = g_Bounds.pop();
+        var pivot = curState.start;
+        runPivot(poppedState, pivot);
     }
     else {
-        g_Bounds.push([start, end, iterNum, depth, k]);
-        var newK = start + Math.floor((iterNum) / 2);
-        setTimeout(function() { selectGroupOfFive(start,start+iterNum, 0,
-                   depth + 1, newK)}, 1);
+        g_Bounds.push(curState);
+        var newK = curState.start + Math.floor((iterNum) / 2);
+        var newState = new State(curState.start, 
+                                 curState.start + iterNum, 
+                                 curState.depth + 1,
+                                 newK);
+        setTimeout(function() { selectGroupOfFive(newState, 0)}, 1);
     }
 }
 
-function runPivot(pivot, start, end, depth, k) {
-    var position = start;
-    for(var i = start; i < end; i++) {
+function runPivot(curState, pivot) {
+    var pivotPosition = curState.start;
+    for(var i = curState.start; i < curState.end; i++) {
         if (g_Elements[pivot] >= g_Elements[i]) {
-            position++;
+            pivotPosition++;
         }
     }
 
-    position--; // >= makes it include itself
+    pivotPosition--; // >= makes it include itself
 
-    swapBars(pivot, position);
+    swapBars(pivot, pivotPosition);
 
-    if (position === k) {
-        setTimeout(function() { selectGroupOfFive(position, position + 1, 0,
-                   depth - 1, 0)}, DELAY);
+    if (pivotPosition === curState.k) {
+        var newState = new State(pivotPosition, 
+                                 pivotPosition + 1, 
+                                 curState.depth - 1,
+                                 pivotPosition);
+        setTimeout(function() { selectGroupOfFive(newState, 0); }, DELAY);
     }
-    else if(k < position) {
+    else if(curState.k < pivotPosition) {
         var isLessThan = true;
-        setTimeout(function() { doPivot(position, start, end, 0,
-                0, depth, k, isLessThan) }, DELAY);
-
+        setTimeout(function() { doPivot(curState, pivotPosition, 0, 0, 
+                isLessThan); }, DELAY);
     }
-    else if(k > position) {
+    else if(curState.k > pivotPosition) {
         var isLessThan = false;
-        setTimeout(function() { doPivot(position, start, end, 0,
-                0, depth, k, isLessThan) }, DELAY);
+        setTimeout(function() { doPivot(curState, pivotPosition, 0, 0, 
+                isLessThan); }, DELAY);
     }
 }
-function doPivot(position, start, end, smallCount, bigCount, depth, k,
-        isLessThan){
-    if (start + smallCount  === position) {
+function doPivot(state, pivotPosition, smallCount, bigCount, isLessThan){
+    if (state.start + smallCount  === pivotPosition) {
         if(isLessThan) {
-            setTimeout(function() { selectGroupOfFive(start, position,
-                    0, depth, k) }, DELAY);
+            var newState = new State(state.start,
+                                     pivotPosition, 
+                                     state.depth,
+                                     state.k);
+            setTimeout(function() { selectGroupOfFive(newState, 0); }, DELAY);
         }
         else {
-            setTimeout(function() { selectGroupOfFive(position + 1, end,
-                    0, depth, k, isLessThan) }, DELAY);
+            var newState = new State(pivotPosition + 1, 
+                                     state.end, 
+                                     state.depth,
+                                     state.k);
+            setTimeout(function() { selectGroupOfFive(newState, 0); }, DELAY);
         }
     }
     else {
-        if(g_Elements[position] < g_Elements[start+smallCount]) {
-            while (g_Elements[position] <= g_Elements[position + bigCount]) {
+        if(g_Elements[pivotPosition] < g_Elements[state.start+smallCount]) {
+            while (g_Elements[pivotPosition] <= 
+                    g_Elements[pivotPosition + bigCount]) {
                 bigCount++;
             }
-            swapBars(start + smallCount, position + bigCount);
-            setTimeout(function() { doPivot(position, start, end,
-                    smallCount, bigCount+1, depth, k, isLessThan)}, DELAY);
+            swapBars(state.start + smallCount, pivotPosition + bigCount);
+            setTimeout(function() { doPivot(state, pivotPosition, 
+                    smallCount, bigCount+1, isLessThan)}, DELAY);
         }
         else {
-            setTimeout(function() { doPivot(position, start, end,
-                    smallCount+1, bigCount, depth, k, isLessThan)}, DELAY);
+            setTimeout(function() { doPivot(state, pivotPosition,
+                    smallCount+1, bigCount, isLessThan)}, DELAY);
         }
     }
 }
@@ -165,30 +181,29 @@ function colorInactive(start, end) {
     }
 }
 
-function colorSelected(start, end, iterNum, depth, k) {
-    var selectStart = start + getSelectStartFromIterNum(iterNum);
+function colorSelected(state, iterNum) {
+    var selectStart = state.start + getSelectStartFromIterNum(iterNum);
     var i = selectStart;
-    var selectEnd = (end - selectStart < 10) ?  end - 1 : selectStart + 4;
+    var selectEnd = (state.end - selectStart < 10) ?  state.end - 1 : selectStart + 4;
     for(;i <= selectEnd; i++) {
         clearBar(i);
-        drawBar(i, selectedColor[depth]);
+        drawBar(i, selectedColor[state.depth]);
     }
-    setTimeout(function() {findAndColorMedian(start, end, iterNum,
-                           depth, k) }, DELAY);
+    setTimeout(function() {findAndColorMedian(state, iterNum); }, DELAY);
 }
 
-function findAndColorMedian (start, end, iterNum, depth, savedK) {
+function findAndColorMedian (state, iterNum) {
 
-    var selectStart = start + getSelectStartFromIterNum(iterNum);
-    var selectEnd = (end - selectStart < 10) ?  end - 1 : selectStart + 4;
+    var selectStart = state.start + getSelectStartFromIterNum(iterNum);
+    var selectEnd = (state.end - selectStart < 10) ? 
+            state.end - 1 : selectStart + 4;
     var k = Math.floor((selectEnd - selectStart) / 2) + selectStart;
     var med = findK(k, selectStart, selectEnd);
 
     clearBar(med);
-    drawBar(med, medianColor[depth]);
+    drawBar(med, medianColor[state.depth]);
 
-    setTimeout(function() { revertSection(start, end, iterNum,
-                            med, depth, savedK);}, DELAY);
+    setTimeout(function() { revertSection(state, iterNum, med);}, DELAY);
 }
 
 function findK(k, start, end) {
@@ -206,30 +221,29 @@ function findK(k, start, end) {
     return -1;
 }
 
-function revertSection(start, end, iterNum, med, depth, k) {
-    var selectStart = start + getSelectStartFromIterNum(iterNum);
+function revertSection(state, iterNum, med) {
+    var selectStart = state.start + getSelectStartFromIterNum(iterNum);
     var i = selectStart;
-    var selectEnd = (end - selectStart < 10) ?  end - 1 : selectStart + 4;
+    var selectEnd = (state.end - selectStart < 10) ?
+            state.end - 1 : selectStart + 4;
     for(;i <= selectEnd; i++) {
         if(i !== med) {
             clearBar(i);
-            if (depth === 0) {
+            if (state.depth === 0) {
                 drawBar(i, color[0]);
             }
             else {
-                drawBar(i, medianColor[depth - 1]);
+                drawBar(i, medianColor[state.depth - 1]);
             }
         }
     }
 
-    setTimeout(function() { swapMedianToFront(start, end, iterNum, med,
-            depth, k);}, DELAY);
+    setTimeout(function() { swapMedianToFront(state, iterNum, med);}, DELAY);
 }
 
-function swapMedianToFront(start, end, iterNum, med, depth, k) {
-    swapBars(start + iterNum, med);
-    setTimeout(function() {selectGroupOfFive(start, end, iterNum+1, depth, k);},
-            DELAY);
+function swapMedianToFront(state, iterNum, med) {
+    swapBars(state.start + iterNum, med);
+    setTimeout(function() {selectGroupOfFive(state, iterNum+1);}, DELAY);
 }
 
 
