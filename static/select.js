@@ -76,27 +76,29 @@ function runCode() {
 }
 
 function selectStart(state) {
-    setTimeout(function() { selectGroupOfFive(state, 0); }, DELAY);
+    if((state.end - state.start) === 1) {
+        if(g_Bounds.length === 0) {
+            colorInactive(state.start, state.end);
+            drawBar(state.start, victory[0]);
+            alert(g_Elements[state.start]);
+            return;
+        }
+        var poppedState = g_Bounds.pop();
+        var pivot = state.start;
+        setTimeout(function() { runPivot(poppedState, pivot);}, 1);
+    }
+    else {
+        if(state.depth === 0) {
+            colorInactive(state.start, state.end);
+        }
+        setTimeout(function() { selectGroupOfFive(state, 0); }, DELAY);
+    }
 }
 
 function selectGroupOfFive(curState, iterNum) {
     var place = curState.start + iterNum * 5;
     if(place < curState.end - 4 || (iterNum === 0 && (curState.end - curState.start > 1))) {
-        if(curState.depth === 0 && iterNum === 0) {
-            colorInactive(curState.start, curState.end);
-        }
         colorSelected(curState, iterNum);
-    }
-    else if((curState.end - curState.start) === 1) {
-        if(g_Bounds.length === 0) {
-            colorInactive(curState.start, curState.end);
-            drawBar(curState.start, victory[0]);
-            alert(g_Elements[curState.start]);
-            return;
-        }
-        var poppedState = g_Bounds.pop();
-        var pivot = curState.start;
-        runPivot(poppedState, pivot);
     }
     else {
         g_Bounds.push(curState);
@@ -105,7 +107,7 @@ function selectGroupOfFive(curState, iterNum) {
                                  curState.start + iterNum, 
                                  curState.depth + 1,
                                  newK);
-        setTimeout(function() { selectGroupOfFive(newState, 0)}, 1);
+        setTimeout(function() { selectStart(newState)}, 1);
     }
 }
 
@@ -126,7 +128,7 @@ function runPivot(curState, pivot) {
                                  pivotPosition + 1, 
                                  curState.depth - 1,
                                  pivotPosition);
-        setTimeout(function() { selectGroupOfFive(newState, 0); }, DELAY);
+        setTimeout(function() { selectStart(newState); }, DELAY);
     }
     else if(curState.k < pivotPosition) {
         var isLessThan = true;
@@ -146,14 +148,14 @@ function doPivot(state, pivotPosition, smallCount, bigCount, isLessThan){
                                      pivotPosition, 
                                      state.depth,
                                      state.k);
-            setTimeout(function() { selectGroupOfFive(newState, 0); }, DELAY);
+            setTimeout(function() { selectStart(newState); }, DELAY);
         }
         else {
             var newState = new State(pivotPosition + 1, 
                                      state.end, 
                                      state.depth,
                                      state.k);
-            setTimeout(function() { selectGroupOfFive(newState, 0); }, DELAY);
+            setTimeout(function() { selectStart(newState); }, DELAY);
         }
     }
     else {
