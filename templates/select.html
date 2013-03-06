@@ -8,16 +8,86 @@
 {% endblock %}
 {% block body %}
 <div class="document">
+    <div class="page_title">
+        Median of Medians Selection Algorithm Visualization
+    </div>
     <div class="canvas">
-        <canvas id="select_canvas" height="500" width="800"></canvas>
+        <canvas id="select_canvas" height="350" width="800"></canvas>
     </div>
     <div class="document_wrapper">
-        <button id="canvas_button">Animate</button>
         <div class="body">
+            <br />
+            <div id="animation_options">
+                <span class="option_label">Length:</span>
+                <input id="element_count" type="text" min="10" max="400" 
+                        value="125"> 
+                <span class="option_label">Delay:</span>
+                <input id="delay_slider" type="range" min="20" max="1000" 
+                        step="20">
+                <span id="delay_display">100</span>
+                <button id="run_reset_button">Run</button>
+                <button id="pause_unpause_button">Pause</button>
+            </div>
             
-            <p>Incididunt irony fanny pack sustainable quinoa next level. Readymade fanny pack lo-fi keytar sartorial artisan. High life craft beer biodiesel, american apparel messenger bag terry richardson gluten-free labore. Officia next level irure, dolore assumenda blog adipisicing ullamco twee velit. Consequat salvia accusamus velit, mollit nostrud brunch. Cliche delectus cred wes anderson labore brooklyn. Quinoa ut hoodie ex put a bird on it master cleanse cred nisi, vero trust fund echo park bicycle rights stumptown lo-fi organic.</p>
-            <p>Ethical esse tofu fanny pack. Magna 8-bit vegan culpa. Seitan DIY food truck next level freegan labore. Banksy scenester veniam williamsburg stumptown, thundercats art party exercitation velit tattooed whatever do nisi. Nisi food truck ullamco jean shorts vinyl laborum occaecat tumblr twee pitchfork, mixtape elit esse cred. Vegan tempor put a bird on it esse. Dolore incididunt helvetica, locavore laborum before they sold out cliche nisi non consequat retro VHS consectetur tempor.</p>
+            <p id="text_stack"></p>
+
+            <div class="body_header">
+                What is this?
+            </div>
+            <p>This is a visualization of the <a href='http://en.wikipedia.org/wiki/Selection_algorithm#Linear_general_selection_algorithm_-_Median_of_Medians_algorithm'>Median of Medians Selection Algorithm</a>. The wikipedia entry did not do it justice for me, so I decided to create this page. The median of medians selection algorithm is an algorithm that allows you to find the nth largest element in an array of elements in linear (O(n)) time, and constant (O(1)) extra space (the array itself still takes up linear (O(n)) space).</p>
+            <div class="body_header">
+                Algorithm Explaination
+            </div>
+            <p>Okay, so how does this algorithm work? Here is some psudocode: (We'll break it down after)</p><code>
+<pre>    select(array, n, start, end)
+        if end - start &#060;= 5
+            sort(array, start, end)
+            return array[n]
+
+        swap_index = start
+        for each 5 elements from start to end
+            sort(array, start of those 5 elements, start+5)
+            swap the (now) 3rd element to the swap_index-th location
+            swap_index = swap_index + 1
+
+        newN = start + ((swap_index - start)/2) 
+        median = select(array, newN, start, swap_index)
+
+        location = pivot(array, median, start, end)
+        if(location == n)
+            return array[n]
+        else if n &#062; newN
+            return select(array, n, newN+1, end)
+        else
+            return select(array, n, start, newN)
+
+    pivot(array, value, start, end)
+        iterate from start to end to find the appropriate location for value
+
+        iterate again moving all the elements larger than value to the right,
+        and all the elements less than value to the left        
+
+        return value's location</pre></code> 
         </div>
+        <p>Okay, now for the breakdown.</p>
+        <p>Since this is a recursive algorithm, the first 3 lines are the base case. If there are 5 or fewer elements to examine, sorting in fewer than C operations, making this effectively a constant time check.</p>
+        <p>The next section finds the medians of each group of 5 elements and shifts said median to the front</p>
+        <p>The 3rd block finds the median of those medians by recursively calling the select method.</p>
+        <p>The final block of the select function uses the median as a pivot, putting all of the values lower than the median on one side, and all the higher values on the other. Then it returns the value if that is the location we were looking for, else it calls select the appropriate subsection of the array. (For example, suppose our median of medians was the 50th largest element and we were looking for the 55th largest element. After the pivot, our 50th largest element sits in location 49 (in our zero indexed array), and all elements greater than it can be forund in locations 50 to 124. So we can confidently return the value of select(array, 54, 50, 124).)</p>
+        <p>The next part is a brief outline of the pivot fuction.</p>
+        <p>This psudocode is not 100% correct, as it does not try to deal with cases where end-start is not a multiple of 5, but I hope the general idea is clear.</p>
+        <div class="body_header">Proof</div>
+        <p>Now that we've looked at the code let's prove that it fits the criteria we stated above.</p>
+        <p>This algorithm can be characterized by what is called a Recurrence Relation. For n initial elements f(n) = 12n/5 + f(n/5) + n + f(r * n). The 12n/5 term represents the number of steps used for choosing the median of each 5 elements. Finding the 3rd largest element in a list of 5 elements can be done trivially in 12 steps (it can actually be done in less but it doesn't for the proof). The f(n/5) term represents the recursive call for finding the median. The n term represents the pivot. Lastly, the f(r * n) represents the worst case number of element that still need to be looked at after finding the median of medians. r is at worst 7/10ths. This is because after picking out the medians of groups of 5 and finding the median of those groups, that median is larger than half of those groups, or 1/10th of the total elements. Since these are the medians of groups of five, we know its also larger than the two smaller elements of those groups, giving us 3/10ths.</p>
+        <p>Now we will assume that this is linear time and attempt to solve it. If it is linear time then f(n) = cn.</p>
+        <p>cn &gt;= 12n/5  + cn/5 + n + 7cn/10 </p>
+        <p>c &gt;= 22/5  + 9c/10</p>
+        <p>c/10 &gt;= 22/5</p>
+        <p>c &gt;= 44</p>
+        <p>f(n) &lt;= 44n, so f(n) is linear. </p>
     </div>
+    <br />
+    <div class="footer">Created by Eric Shrewsberry, 2012</div>
+    <br />
 </div>
 {% endblock %}

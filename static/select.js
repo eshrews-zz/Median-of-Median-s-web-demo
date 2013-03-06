@@ -1,34 +1,47 @@
+
+var INITIAL_DELAY = 100;
+
 $(document).ready(function() {
-    $("#canvas_button").click(runCode);
-
-
+    $("#run_reset_button").click(runCode);
+    $("#pause_unpause_button").click(togglePause);
+    $("#element_count").change(elementCountChanged);
+    $("#delay_slider").change(delayChanged);
+    $("#delay_slider").val(INITIAL_DELAY);
+    $("#delay_slider").change();
+    
+    initialize();
 });
 
 var color = ["#1E161E"];
-var selectedColor = ["#00FF00","#00FF00","#00FF00","#00FF00","#00FF00"];
-var medianColor = ["#FF0000", "#FFFF00","#00FFFF","#FF00FF","#0000FF"];
+var selectedColor = ["#1B1BB3","#1B1BB3","#1B1BB3","#1B1BB3","#1B1BB3"];
+var medianColor = ["#FF0000", "#FF7400","#009999","#00CC00","#FFFFFF"];
 var inactive = ["#9D8F96"];
-var victory = ["#FCD667"];
+var victory = ["#FFBF00"];
 
 var WIDTH;
 var HEIGHT;
-var DELAY = 100;
 var ctx;
-var g_ElementCount = 126;
+var g_delay = 50;
+var g_ElementCount = 100;
 var g_Elements = [];
-var g_SelectIndex = 100;
+var g_SelectIndex = 4;
 var g_Pivot = [];
 var g_Bounds = [];
-var text_stack = [];
-
+var g_TextStack = [];
+var g_initialized = false;
 
 var barHeightDouble;
 var barWidth;
 var spacing;
-var elmWidth
+var elmWidth;
 var totalWidth;
 var initX;
 
+
+//Provide a hook into the set timeout process
+function passToTimeout(fn, delay) {
+    setTimeout(fn,delay); 
+}
 
 function State(start, end, depth, k) {
     this.start = start;
@@ -44,10 +57,10 @@ function calculate_layout() {
     spacing = Math.floor(elmWidth/2);
     barWidth = elmWidth - spacing;
     initX = Math.floor((WIDTH - totalWidth) / 2);
-    barHeightDouble = (HEIGHT * .2) / g_Elements.length;
+    barHeightDouble = (HEIGHT * .90) / g_Elements.length;
 }
 
-function runCode() {
+function initialize() {
     ctx = $('#select_canvas')[0].getContext("2d");
     HEIGHT = $('#select_canvas')[0].height;
     WIDTH = $('#select_canvas')[0].width;
@@ -56,8 +69,7 @@ function runCode() {
     
     var i;
     for (i = 1; i <= g_ElementCount; ++i) {
-        g_Elements.push(i*3);
-        //g_Elements.push(Math.floor(Math.random() * g_ElementCount * 4));
+        g_Elements.push(Math.ceil(Math.random() * g_ElementCount ));
     }
 
     for(i = 0; i < g_ElementCount; ++i) {
@@ -68,11 +80,20 @@ function runCode() {
     }
 
     calculate_layout();
-    draw_initial();
+    drawInitial();
+    g_initialized = true;
+} 
 
+function runCode() {
+    console.log("runCode");
+    if(g_initialized === false)
+        return;
+
+    
+    
     var initState = new State(0, g_ElementCount, 0, g_SelectIndex);
-
-    setTimeout(function() { selectStart(initState);}, DELAY);
+    pushSearch(initState);
+    passToTimeout(function() { selectStart(initState);}, g_delay);
 }
 
 function selectStart(state) {
@@ -80,34 +101,36 @@ function selectStart(state) {
         if(g_Bounds.length === 0) {
             colorInactive(state.start, state.end);
             drawBar(state.start, victory[0]);
-            alert(g_Elements[state.start]);
             return;
         }
         var poppedState = g_Bounds.pop();
         var pivot = state.start;
-        setTimeout(function() { runPivot(poppedState, pivot);}, 1);
+        passToTimeout(function() { runPivot(poppedState, pivot);}, 1);
     }
     else {
         if(state.depth === 0) {
             colorInactive(state.start, state.end);
         }
-        setTimeout(function() { selectGroupOfFive(state, 0); }, DELAY);
+        pushMedianRange(state);
+        passToTimeout(function() { selectGroupOfFive(state, 0); }, g_delay);
     }
 }
 
 function selectGroupOfFive(curState, iterNum) {
     var place = curState.start + iterNum * 5;
-    if(place < curState.end - 4 || (iterNum === 0 && (curState.end - curState.start > 1))) {
+    if(place < curState.end - 4 || 
+            (iterNum === 0 && (curState.end - curState.start > 1))) {
         colorSelected(curState, iterNum);
     }
     else {
         g_Bounds.push(curState);
-        var newK = curState.start + Math.floor((iterNum) / 2);
+        var newK = curState.start + Math.floor((iterNum - 1) / 2);
         var newState = new State(curState.start, 
                                  curState.start + iterNum, 
                                  curState.depth + 1,
                                  newK);
-        setTimeout(function() { selectStart(newState)}, 1);
+        pushSearch(newState);
+        passToTimeout(function() { selectStart(newState)}, 1);
     }
 }
 
@@ -122,23 +145,25 @@ function runPivot(curState, pivot) {
     pivotPosition--; // >= makes it include itself
 
     swapBars(pivot, pivotPosition);
+    pushPivot(pivotPosition);
 
     if (pivotPosition === curState.k) {
+        //popTopText();
         var newState = new State(pivotPosition, 
                                  pivotPosition + 1, 
                                  curState.depth - 1,
                                  pivotPosition);
-        setTimeout(function() { selectStart(newState); }, DELAY);
+        passToTimeout(function() { selectStart(newState); }, g_delay);
     }
     else if(curState.k < pivotPosition) {
         var isLessThan = true;
-        setTimeout(function() { doPivot(curState, pivotPosition, 0, 0, 
-                isLessThan); }, DELAY);
+        passToTimeout(function() { doPivot(curState, pivotPosition, 0, 0, 
+                isLessThan); }, g_delay);
     }
     else if(curState.k > pivotPosition) {
         var isLessThan = false;
-        setTimeout(function() { doPivot(curState, pivotPosition, 0, 0, 
-                isLessThan); }, DELAY);
+        passToTimeout(function() { doPivot(curState, pivotPosition, 0, 0, 
+                isLessThan); }, g_delay);
     }
 }
 function doPivot(state, pivotPosition, smallCount, bigCount, isLessThan){
@@ -148,14 +173,14 @@ function doPivot(state, pivotPosition, smallCount, bigCount, isLessThan){
                                      pivotPosition, 
                                      state.depth,
                                      state.k);
-            setTimeout(function() { selectStart(newState); }, DELAY);
+            passToTimeout(function() { selectStart(newState); }, g_delay);
         }
         else {
             var newState = new State(pivotPosition + 1, 
                                      state.end, 
                                      state.depth,
                                      state.k);
-            setTimeout(function() { selectStart(newState); }, DELAY);
+            passToTimeout(function() { selectStart(newState); }, g_delay);
         }
     }
     else {
@@ -165,12 +190,12 @@ function doPivot(state, pivotPosition, smallCount, bigCount, isLessThan){
                 bigCount++;
             }
             swapBars(state.start + smallCount, pivotPosition + bigCount);
-            setTimeout(function() { doPivot(state, pivotPosition, 
-                    smallCount, bigCount+1, isLessThan)}, DELAY);
+            passToTimeout(function() { doPivot(state, pivotPosition, 
+                    smallCount, bigCount+1, isLessThan)}, g_delay);
         }
         else {
-            setTimeout(function() { doPivot(state, pivotPosition,
-                    smallCount+1, bigCount, isLessThan)}, DELAY);
+            passToTimeout(function() { doPivot(state, pivotPosition,
+                    smallCount+1, bigCount, isLessThan)}, g_delay);
         }
     }
 }
@@ -191,7 +216,7 @@ function colorSelected(state, iterNum) {
         clearBar(i);
         drawBar(i, selectedColor[state.depth]);
     }
-    setTimeout(function() {findAndColorMedian(state, iterNum); }, DELAY);
+    passToTimeout(function() {findAndColorMedian(state, iterNum); }, g_delay);
 }
 
 function findAndColorMedian (state, iterNum) {
@@ -205,7 +230,7 @@ function findAndColorMedian (state, iterNum) {
     clearBar(med);
     drawBar(med, medianColor[state.depth]);
 
-    setTimeout(function() { revertSection(state, iterNum, med);}, DELAY);
+    passToTimeout(function() { revertSection(state, iterNum, med);}, g_delay);
 }
 
 function findK(k, start, end) {
@@ -240,12 +265,12 @@ function revertSection(state, iterNum, med) {
         }
     }
 
-    setTimeout(function() { swapMedianToFront(state, iterNum, med);}, DELAY);
+    passToTimeout(function() { swapMedianToFront(state, iterNum, med);}, g_delay);
 }
 
 function swapMedianToFront(state, iterNum, med) {
     swapBars(state.start + iterNum, med);
-    setTimeout(function() {selectGroupOfFive(state, iterNum+1);}, DELAY);
+    passToTimeout(function() {selectGroupOfFive(state, iterNum+1);}, g_delay);
 }
 
 
@@ -255,7 +280,7 @@ function getSelectStartFromIterNum(selectStart) {
 
 /* Canvas Utility Functions**/
 
-function draw_initial() {
+function drawInitial() {
     clear();
     var i = 0;
     for (i = 0; i < g_Elements.length; ++i) {
@@ -343,6 +368,74 @@ function hexValueToString(value) {
         case 13: return "D";
         case 14: return "E";
         case 15: return "F";
-        default: return "-1"
+        default: return "-1";
     }
+}
+
+function pushPivot(pivot) {
+    g_TextStack.push("Pivoting on location " + pivot + ".");
+    repaintTextStack();
+}
+
+function pushMedianRange(state) { //start, end) {
+    var text = "Finding medians ";
+    var depth = state.depth - 1;
+    for(var i = 0; i < depth; i++)
+        text += "of medians ";
+
+    text += "in range: location " + state.start + " to location " + state.end;  
+    g_TextStack.push(text);
+    repaintTextStack();
+}
+
+function pushSearch(state) {
+    var depth = state.depth;
+    var k = state.k;
+    if(depth === 0)
+        g_TextStack.push("Searching for element in location " + k);
+    else if (depth === 1)
+        g_TextStack.push("Searching for median in location " + k);
+    else {
+        var text = "Searching for median "
+        for(var i = 1; i < depth; i++)
+            text += "of medians ";
+        text += "in location " + k;
+        g_TextStack.push(text);
+    }
+    repaintTextStack();
+}
+
+function popTopText() {
+    g_TextStack.pop();
+    console.log("poppin");
+    repaintTextStack();
+}
+
+function repaintTextStack() {
+    var ts = $('#text_stack')[0];
+    var str = "";
+    for(var i = 0; i < g_TextStack.length; i++) {
+        str += g_TextStack[i] + "<br />";
+    }
+    console.log("painting");
+    ts.innerHTML = str;
+    //Resevered for element manipulation
+}
+
+function togglePause() {
+    g_isPaused = !g_isPaused;
+    if(g_isPaused)
+        $("#pause_unpause_button").innerHTML="Unpause";
+    else
+        $("#pause_unpause_button").innerHTML="Pause";
+}
+
+function elementCountChanged() {
+
+}
+
+function delayChanged() {
+    g_delay = $(this).val();//$("delay_slider").value;
+    console.log(g_delay);
+    $("#delay_display").html(g_delay);
 }
