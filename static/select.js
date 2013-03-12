@@ -1,33 +1,13 @@
+var eshrews;
 
-var INITIAL_DELAY = 100;
+if(eshrews === undefined) {
+    eshrews = {};
+}
+
+eshrews.select = function() {
 
 var g_canvas;
 var g_ctx;
-
-$(document).ready(function() {
-    g_canvas = $('#select_canvas')[0];
-    g_ctx = g_canvas.getContext("2d");
-    $("#run_pause_button").click(runPauseUnpause);
-    $("#reset_button").click(reset);
-    $("#element_count").val(g_ElementCount);
-    $("#select_index").val(g_SelectIndex);
-    $("#element_count").change(elementCountChanged);
-    $("#select_index").change(selectIndexChanged);
-    $("#delay_slider").change(delayChanged);
-    $("#delay_slider").val(INITIAL_DELAY);
-    
-    if(window.devicePixelRatio) { //Retina display canvas fix
-        var cwidth = $(g_canvas).attr('width');
-        var cheight = $(g_canvas).attr('height');
-
-        $(g_canvas).attr('width', cwidth * window.devicePixelRatio);
-        $(g_canvas).attr('height', cheight * window.devicePixelRatio);
-        $(g_canvas).css('width', cwidth);
-        $(g_canvas).css('height', cheight);
-    }
-
-    initialize();
-});
 
 var color = ["#1E161E"];
 var selectedColor = ["#1B1BB3","#1B1BB3","#1B1BB3","#1B1BB3","#1B1BB3"];
@@ -38,12 +18,11 @@ var victory = ["#FFBF00"];
 var WIDTH;
 var HEIGHT;
 var g_ctx;
-var g_delay = 50;
-var g_ElementCount = 100;
-var g_Elements = [];
-var g_SelectIndex = 4;
-var g_Pivot = [];
-var g_Bounds = [];
+var g_delay = 100;
+var g_elementCount = 100;
+var g_elements = [];
+var g_selectIndex = 4;
+var g_bounds = [];
 var g_initialized = false;
 var g_isPaused = false;
 var g_inRun = false;
@@ -79,12 +58,12 @@ function State(start, end, depth, k) {
 }
 
 function calculate_layout() {
-    elmWidth = Math.floor(WIDTH / g_Elements.length);
-    totalWidth = elmWidth * g_Elements.length;
+    elmWidth = Math.floor(WIDTH / g_elements.length);
+    totalWidth = elmWidth * g_elements.length;
     spacing = Math.floor(elmWidth/2);
     barWidth = elmWidth - spacing;
     initX = Math.floor((WIDTH - totalWidth) / 2);
-    barHeightDouble = (HEIGHT * .90) / g_Elements.length;
+    barHeightDouble = (HEIGHT * .90) / g_elements.length;
 }
 
 
@@ -134,18 +113,18 @@ function initialize() {
     WIDTH = g_canvas.width;
 
     setCanvasDesc("");
-    g_Elements = [];
+    g_elements = [];
     
     var i;
-    for (i = 1; i <= g_ElementCount; ++i) {
-        g_Elements.push(Math.ceil(Math.random() * g_ElementCount ));
+    for (i = 1; i <= g_elementCount; ++i) {
+        g_elements.push(Math.ceil(Math.random() * g_elementCount ));
     }
 
-    for(i = 0; i < g_ElementCount; ++i) {
-        var rand = Math.floor(Math.random() * g_ElementCount);
-        temp = g_Elements[rand];
-        g_Elements[rand] = g_Elements[i];
-        g_Elements[i] = temp;
+    for(i = 0; i < g_elementCount; ++i) {
+        var rand = Math.floor(Math.random() * g_elementCount);
+        temp = g_elements[rand];
+        g_elements[rand] = g_elements[i];
+        g_elements[i] = temp;
     }
 
     g_isPaused = false;
@@ -160,21 +139,21 @@ function runCode() {
     if(g_initialized === false)
         return;
 
-    var initState = new State(0, g_ElementCount, 0, g_SelectIndex);
+    var initState = new State(0, g_elementCount, 0, g_selectIndex);
     setCanvasDesc("Searching for index.");
     passToTimeout(function() { selectStart(initState);}, g_delay);
 }
 
 function selectStart(state) {
     if((state.end - state.start) === 1) {
-        if(g_Bounds.length === 0) {
+        if(g_bounds.length === 0) {
             colorInactive(state.start, state.end);
             drawBar(state.start, victory[0]);
-            setCanvasDesc("Found index. The value is " + g_Elements[state.start] + ".");
+            setCanvasDesc("Found index. The value is " + g_elements[state.start] + ".");
             endRun();
             return;
         }
-        var poppedState = g_Bounds.pop();
+        var poppedState = g_bounds.pop();
         var pivot = state.start;
         passToTimeout(function() { runPivot(poppedState, pivot);}, 1);
     }
@@ -193,7 +172,7 @@ function selectGroupOfFive(curState, iterNum) {
         colorSelected(curState, iterNum);
     }
     else {
-        g_Bounds.push(curState);
+        g_bounds.push(curState);
         var newK = curState.start + Math.floor((iterNum - 1) / 2);
         var newState = new State(curState.start, 
                                  curState.start + iterNum, 
@@ -207,10 +186,10 @@ function runPivot(curState, pivot) {
     var pivotPosition = curState.start;
     var equalCount = 0;
     for(var i = curState.start; i < curState.end; i++) {
-        if (g_Elements[pivot] > g_Elements[i]) {
+        if (g_elements[pivot] > g_elements[i]) {
             pivotPosition++;
         }
-        if (g_Elements[pivot] == g_Elements[i]) {
+        if (g_elements[pivot] == g_elements[i]) {
             equalCount++;
         }
     }
@@ -257,20 +236,20 @@ function doPivot(state, pivotPosition, sameToLeft, smallCount, bigCount, isLessT
         }
     }
     else {
-        if(g_Elements[pivotPosition] <= g_Elements[state.start+smallCount]) {
-            if(g_Elements[pivotPosition] === g_Elements[state.start+smallCount] &&
+        if(g_elements[pivotPosition] <= g_elements[state.start+smallCount]) {
+            if(g_elements[pivotPosition] === g_elements[state.start+smallCount] &&
                     sameToLeft > 0) {
                 passToTimeout(function() { doPivot(state, pivotPosition, sameToLeft-1,
                     smallCount+1, bigCount, isLessThan)}, g_delay);
             }
             else {
 
-                var lt = (g_Elements[pivotPosition] < g_Elements[pivotPosition + bigCount +1]);
-                var eq = (g_Elements[pivotPosition] === g_Elements[pivotPosition + bigCount + 1]);
+                var lt = (g_elements[pivotPosition] < g_elements[pivotPosition + bigCount +1]);
+                var eq = (g_elements[pivotPosition] === g_elements[pivotPosition + bigCount + 1]);
                 while (lt || (eq && sameToLeft === 0)) {
                     bigCount++;
-                    lt = (g_Elements[pivotPosition] < g_Elements[pivotPosition + bigCount +1]);
-                    eq = (g_Elements[pivotPosition] === g_Elements[pivotPosition + bigCount + 1]);
+                    lt = (g_elements[pivotPosition] < g_elements[pivotPosition + bigCount +1]);
+                    eq = (g_elements[pivotPosition] === g_elements[pivotPosition + bigCount + 1]);
                 }
                 if(eq) {
                     sameToLeft--;
@@ -288,7 +267,7 @@ function doPivot(state, pivotPosition, sameToLeft, smallCount, bigCount, isLessT
 }
 
 function colorInactive(start, end) {
-    for( var i = 0; i <= g_Elements.length; i++) {
+    for( var i = 0; i <= g_elements.length; i++) {
         if(i < start || i >= end) {
             drawBar(i, inactive[0]);
         }
@@ -324,11 +303,11 @@ function findK(k, start, end) {
     temp = [];
     var i;
     for( i = start; i <= end; i++) {
-        temp.push(g_Elements[i]);
+        temp.push(g_elements[i]);
     }
     temp = temp.sort(function(a,b) {return (a-b);});
     for(i = start; i <= end; i++) {
-        if (temp[k - start] === g_Elements[i]) {
+        if (temp[k - start] === g_elements[i]) {
             return i;
         }
     }
@@ -370,7 +349,7 @@ function getSelectStartFromIterNum(selectStart) {
 function drawInitial() {
     clear();
     var i = 0;
-    for (i = 0; i < g_Elements.length; ++i) {
+    for (i = 0; i < g_elements.length; ++i) {
         drawBar(i, color[0]);
     }
 }
@@ -379,16 +358,16 @@ function swapBars(pos1, pos2) {
     var color1 = getBarColor(pos1);
     var color2 = getBarColor(pos2);
 
-    var temp = g_Elements[pos1];
-    if(g_Elements[pos1] === undefined || g_Elements[pos2] === undefined) {
+    var temp = g_elements[pos1];
+    if(g_elements[pos1] === undefined || g_elements[pos2] === undefined) {
         runPauseUnpause();
     }
 
     clearBar(pos1);
     clearBar(pos2);
         
-    g_Elements[pos1] = g_Elements[pos2];
-    g_Elements[pos2] = temp;
+    g_elements[pos1] = g_elements[pos2];
+    g_elements[pos2] = temp;
 
     drawBar(pos1, color2);
     drawBar(pos2, color1);
@@ -409,7 +388,7 @@ function clearBar(pos) {
 
 function drawBar(pos, color) {
     var x = initX + (pos * (elmWidth));
-    var height = Math.floor(g_Elements[pos] * barHeightDouble);
+    var height = Math.floor(g_elements[pos] * barHeightDouble);
     var y = HEIGHT - height;
     g_ctx.fillStyle = color;
     g_ctx.beginPath();
@@ -470,9 +449,9 @@ function setCanvasDesc(text) {
 
 function selectIndexChanged() {
     var si = parseInt($(this).val());
-    si = Math.min(g_ElementCount-1, si);
+    si = Math.min(g_elementCount-1, si);
     si = Math.max($(this).prop("min"), si);
-    g_SelectIndex = si;
+    g_selectIndex = si;
     $(this).val(si);
 }
 
@@ -480,10 +459,10 @@ function elementCountChanged() {
     var si = parseInt($(this).val());
     si = Math.min($(this).prop("max"), si);
     si = Math.max($(this).prop("min"), si);
-    g_ElementCount = si;
+    g_elementCount = si;
     $(this).val(si);
-    if(g_SelectIndex >= g_ElementCount) {
-        g_SelectIndex = g_ElementCount - 1;
+    if(g_selectIndex >= g_elementCount) {
+        g_selectIndex = g_elementCount - 1;
         $("#select_index").val(si-1);
     }
     initialize();
@@ -492,3 +471,37 @@ function elementCountChanged() {
 function delayChanged() {
     g_delay = $(this).val();//$("delay_slider").value;
 }
+
+
+    return {
+        onLoad: function() {
+
+            g_canvas = $('#select_canvas')[0];
+            g_ctx = g_canvas.getContext("2d");
+            $("#run_pause_button").click(runPauseUnpause);
+            $("#reset_button").click(reset);
+            $("#element_count").val(g_elementCount);
+            $("#select_index").val(g_selectIndex);
+            $("#element_count").change(elementCountChanged);
+            $("#select_index").change(selectIndexChanged);
+            $("#delay_slider").change(delayChanged);
+            $("#delay_slider").val(g_delay);
+            
+            if(window.devicePixelRatio) { //Retina display canvas fix
+                var cwidth = $(g_canvas).attr('width');
+                var cheight = $(g_canvas).attr('height');
+
+                $(g_canvas).attr('width', cwidth * window.devicePixelRatio);
+                $(g_canvas).attr('height', cheight * window.devicePixelRatio);
+                $(g_canvas).css('width', cwidth);
+                $(g_canvas).css('height', cheight);
+            }
+
+            initialize();
+        }
+    }
+};
+
+$(document).ready(function() {
+    eshrews.select().onLoad();
+});
