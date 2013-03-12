@@ -1,14 +1,31 @@
 
 var INITIAL_DELAY = 100;
 
+var g_canvas;
+var g_ctx;
+
 $(document).ready(function() {
-    $("#run_reset_button").click(runCode);
-    $("#pause_unpause_button").click(togglePause);
+    g_canvas = $('#select_canvas')[0];
+    g_ctx = g_canvas.getContext("2d");
+    $("#run_pause_button").click(runPauseUnpause);
+    $("#reset_button").click(reset);
+    $("#element_count").val(g_ElementCount);
+    $("#select_index").val(g_SelectIndex);
     $("#element_count").change(elementCountChanged);
+    $("#select_index").change(selectIndexChanged);
     $("#delay_slider").change(delayChanged);
     $("#delay_slider").val(INITIAL_DELAY);
-    $("#delay_slider").change();
     
+    if(window.devicePixelRatio) { //Retina display canvas fix
+        var cwidth = $(g_canvas).attr('width');
+        var cheight = $(g_canvas).attr('height');
+
+        $(g_canvas).attr('width', cwidth * window.devicePixelRatio);
+        $(g_canvas).attr('height', cheight * window.devicePixelRatio);
+        $(g_canvas).css('width', cwidth);
+        $(g_canvas).css('height', cheight);
+    }
+
     initialize();
 });
 
@@ -20,15 +37,17 @@ var victory = ["#FFBF00"];
 
 var WIDTH;
 var HEIGHT;
-var ctx;
+var g_ctx;
 var g_delay = 50;
 var g_ElementCount = 100;
 var g_Elements = [];
 var g_SelectIndex = 4;
 var g_Pivot = [];
 var g_Bounds = [];
-var g_TextStack = [];
 var g_initialized = false;
+var g_isPaused = false;
+var g_inRun = false;
+var g_onUnpause = null;
 
 var barHeightDouble;
 var barWidth;
@@ -40,7 +59,16 @@ var initX;
 
 //Provide a hook into the set timeout process
 function passToTimeout(fn, delay) {
-    setTimeout(fn,delay); 
+    setTimeout(function(){setTimeoutWakeUp(fn);},delay); 
+}
+
+function setTimeoutWakeUp(fn) { 
+    if(g_inRun && !g_isPaused) {
+        fn();
+    }
+    else if(g_inRun && g_isPaused) {
+        g_onUnpause = fn;
+    }
 }
 
 function State(start, end, depth, k) {
@@ -53,18 +81,59 @@ function State(start, end, depth, k) {
 function calculate_layout() {
     elmWidth = Math.floor(WIDTH / g_Elements.length);
     totalWidth = elmWidth * g_Elements.length;
-    //TODO: Error handle for too many/too few
     spacing = Math.floor(elmWidth/2);
     barWidth = elmWidth - spacing;
     initX = Math.floor((WIDTH - totalWidth) / 2);
     barHeightDouble = (HEIGHT * .90) / g_Elements.length;
 }
 
-function initialize() {
-    ctx = $('#select_canvas')[0].getContext("2d");
-    HEIGHT = $('#select_canvas')[0].height;
-    WIDTH = $('#select_canvas')[0].width;
 
+function runPauseUnpause() {
+    if(g_inRun === false) {
+        if(g_initialized === false) {
+            initialize();
+        }
+        g_inRun = true;
+        $("#run_pause_button")[0].innerHTML = "Pause";
+        $("#element_count").prop("disabled", true).addClass("disabled");
+        $("#select_index").prop("disabled", true).addClass("disabled");
+        passToTimeout(function() { runCode(); }, 0);
+    }
+    else { //g_inRun === true
+        if(!g_isPaused) {
+            $("#run_pause_button")[0].innerHTML="Unpause";
+            g_isPaused = true;
+        }
+        else {
+            $("#run_pause_button")[0].innerHTML="Pause";
+            g_isPaused = false;
+            if(g_onUnpause !== null) {
+                var temp = g_onUnpause;
+                g_onUnpause = null;
+                passToTimeout(temp, 0);
+            } 
+        }
+    }
+}
+
+function reset() {
+    endRun(); 
+    initialize();
+}
+
+function endRun() {
+    g_initialized = false;
+    g_inRun = false;
+    $("#run_pause_button")[0].innerHTML = "Run";
+    $("#element_count").prop("disabled", false).removeClass("disabled");
+    $("#select_index").prop("disabled", false).removeClass("disabled");
+}
+
+function initialize() {
+    HEIGHT = g_canvas.height;
+    WIDTH = g_canvas.width;
+
+    setCanvasDesc("");
     g_Elements = [];
     
     var i;
@@ -79,20 +148,20 @@ function initialize() {
         g_Elements[i] = temp;
     }
 
+    g_isPaused = false;
+    g_onUnpause = null;
+
     calculate_layout();
     drawInitial();
     g_initialized = true;
 } 
 
 function runCode() {
-    console.log("runCode");
     if(g_initialized === false)
         return;
 
-    
-    
     var initState = new State(0, g_ElementCount, 0, g_SelectIndex);
-    pushSearch(initState);
+    setCanvasDesc("Searching for index.");
     passToTimeout(function() { selectStart(initState);}, g_delay);
 }
 
@@ -101,6 +170,8 @@ function selectStart(state) {
         if(g_Bounds.length === 0) {
             colorInactive(state.start, state.end);
             drawBar(state.start, victory[0]);
+            setCanvasDesc("Found index. The value is " + g_Elements[state.start] + ".");
+            endRun();
             return;
         }
         var poppedState = g_Bounds.pop();
@@ -111,7 +182,6 @@ function selectStart(state) {
         if(state.depth === 0) {
             colorInactive(state.start, state.end);
         }
-        pushMedianRange(state);
         passToTimeout(function() { selectGroupOfFive(state, 0); }, g_delay);
     }
 }
@@ -129,23 +199,26 @@ function selectGroupOfFive(curState, iterNum) {
                                  curState.start + iterNum, 
                                  curState.depth + 1,
                                  newK);
-        pushSearch(newState);
         passToTimeout(function() { selectStart(newState)}, 1);
     }
 }
 
 function runPivot(curState, pivot) {
     var pivotPosition = curState.start;
+    var equalCount = 0;
     for(var i = curState.start; i < curState.end; i++) {
-        if (g_Elements[pivot] >= g_Elements[i]) {
+        if (g_Elements[pivot] > g_Elements[i]) {
             pivotPosition++;
+        }
+        if (g_Elements[pivot] == g_Elements[i]) {
+            equalCount++;
         }
     }
 
-    pivotPosition--; // >= makes it include itself
+    var toLeft = Math.floor(equalCount / 2);
+    pivotPosition += toLeft;
 
     swapBars(pivot, pivotPosition);
-    pushPivot(pivotPosition);
 
     if (pivotPosition === curState.k) {
         //popTopText();
@@ -157,16 +230,16 @@ function runPivot(curState, pivot) {
     }
     else if(curState.k < pivotPosition) {
         var isLessThan = true;
-        passToTimeout(function() { doPivot(curState, pivotPosition, 0, 0, 
+        passToTimeout(function() { doPivot(curState, pivotPosition, toLeft, 0, 0, 
                 isLessThan); }, g_delay);
     }
     else if(curState.k > pivotPosition) {
         var isLessThan = false;
-        passToTimeout(function() { doPivot(curState, pivotPosition, 0, 0, 
+        passToTimeout(function() { doPivot(curState, pivotPosition, toLeft, 0, 0, 
                 isLessThan); }, g_delay);
     }
 }
-function doPivot(state, pivotPosition, smallCount, bigCount, isLessThan){
+function doPivot(state, pivotPosition, sameToLeft, smallCount, bigCount, isLessThan){
     if (state.start + smallCount  === pivotPosition) {
         if(isLessThan) {
             var newState = new State(state.start,
@@ -184,17 +257,31 @@ function doPivot(state, pivotPosition, smallCount, bigCount, isLessThan){
         }
     }
     else {
-        if(g_Elements[pivotPosition] < g_Elements[state.start+smallCount]) {
-            while (g_Elements[pivotPosition] <= 
-                    g_Elements[pivotPosition + bigCount]) {
-                bigCount++;
+        if(g_Elements[pivotPosition] <= g_Elements[state.start+smallCount]) {
+            if(g_Elements[pivotPosition] === g_Elements[state.start+smallCount] &&
+                    sameToLeft > 0) {
+                passToTimeout(function() { doPivot(state, pivotPosition, sameToLeft-1,
+                    smallCount+1, bigCount, isLessThan)}, g_delay);
             }
-            swapBars(state.start + smallCount, pivotPosition + bigCount);
-            passToTimeout(function() { doPivot(state, pivotPosition, 
-                    smallCount, bigCount+1, isLessThan)}, g_delay);
+            else {
+
+                var lt = (g_Elements[pivotPosition] < g_Elements[pivotPosition + bigCount +1]);
+                var eq = (g_Elements[pivotPosition] === g_Elements[pivotPosition + bigCount + 1]);
+                while (lt || (eq && sameToLeft === 0)) {
+                    bigCount++;
+                    lt = (g_Elements[pivotPosition] < g_Elements[pivotPosition + bigCount +1]);
+                    eq = (g_Elements[pivotPosition] === g_Elements[pivotPosition + bigCount + 1]);
+                }
+                if(eq) {
+                    sameToLeft--;
+                }
+                swapBars(state.start + smallCount, pivotPosition + bigCount + 1);
+                passToTimeout(function() { doPivot(state, pivotPosition, sameToLeft,
+                        smallCount+1, bigCount+1, isLessThan)}, g_delay);
+            }
         }
         else {
-            passToTimeout(function() { doPivot(state, pivotPosition,
+            passToTimeout(function() { doPivot(state, pivotPosition, sameToLeft,
                     smallCount+1, bigCount, isLessThan)}, g_delay);
         }
     }
@@ -291,11 +378,16 @@ function drawInitial() {
 function swapBars(pos1, pos2) {
     var color1 = getBarColor(pos1);
     var color2 = getBarColor(pos2);
-    clearBar(pos1);
-    clearBar(pos2);
 
     var temp = g_Elements[pos1];
-    g_Elements[pos1] = g_Elements[pos2]
+    if(g_Elements[pos1] === undefined || g_Elements[pos2] === undefined) {
+        runPauseUnpause();
+    }
+
+    clearBar(pos1);
+    clearBar(pos2);
+        
+    g_Elements[pos1] = g_Elements[pos2];
     g_Elements[pos2] = temp;
 
     drawBar(pos1, color2);
@@ -303,27 +395,27 @@ function swapBars(pos1, pos2) {
 }
 
 function clear() {
-    ctx.clearRect(0, 0, WIDTH, HEIGHT);
+    g_ctx.clearRect(0, 0, WIDTH, HEIGHT);
 }
 
 function clearBar(pos) {
     var x = initX + (pos * (elmWidth));
-    ctx.fillStyle = "#FFFFFF";
-    ctx.beginPath();
-    ctx.rect(x, 0, barWidth, HEIGHT);
-    ctx.closePath();
-    ctx.fill();
+    g_ctx.fillStyle = "#FFFFFF";
+    g_ctx.beginPath();
+    g_ctx.rect(x, 0, barWidth, HEIGHT);
+    g_ctx.closePath();
+    g_ctx.fill();
 }
 
 function drawBar(pos, color) {
     var x = initX + (pos * (elmWidth));
     var height = Math.floor(g_Elements[pos] * barHeightDouble);
     var y = HEIGHT - height;
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.rect(x, y, barWidth, height);
-    ctx.closePath();
-    ctx.fill();
+    g_ctx.fillStyle = color;
+    g_ctx.beginPath();
+    g_ctx.rect(x, y, barWidth, height);
+    g_ctx.closePath();
+    g_ctx.fill();
 }
 
 /* Coloring utility functions **/
@@ -332,7 +424,7 @@ function getBarColor(pos) {
     var x = initX + (pos * (elmWidth));
     var y = HEIGHT - 1;
 
-    var pixel = ctx.getImageData(x, y, 1, 1).data;
+    var pixel = g_ctx.getImageData(x, y, 1, 1).data;
     return getColorString(pixel);
 }
 
@@ -372,70 +464,31 @@ function hexValueToString(value) {
     }
 }
 
-function pushPivot(pivot) {
-    g_TextStack.push("Pivoting on location " + pivot + ".");
-    repaintTextStack();
+function setCanvasDesc(text) {
+    $("#canvas_desc").text(text);    
 }
 
-function pushMedianRange(state) { //start, end) {
-    var text = "Finding medians ";
-    var depth = state.depth - 1;
-    for(var i = 0; i < depth; i++)
-        text += "of medians ";
-
-    text += "in range: location " + state.start + " to location " + state.end;  
-    g_TextStack.push(text);
-    repaintTextStack();
-}
-
-function pushSearch(state) {
-    var depth = state.depth;
-    var k = state.k;
-    if(depth === 0)
-        g_TextStack.push("Searching for element in location " + k);
-    else if (depth === 1)
-        g_TextStack.push("Searching for median in location " + k);
-    else {
-        var text = "Searching for median "
-        for(var i = 1; i < depth; i++)
-            text += "of medians ";
-        text += "in location " + k;
-        g_TextStack.push(text);
-    }
-    repaintTextStack();
-}
-
-function popTopText() {
-    g_TextStack.pop();
-    console.log("poppin");
-    repaintTextStack();
-}
-
-function repaintTextStack() {
-    var ts = $('#text_stack')[0];
-    var str = "";
-    for(var i = 0; i < g_TextStack.length; i++) {
-        str += g_TextStack[i] + "<br />";
-    }
-    console.log("painting");
-    ts.innerHTML = str;
-    //Resevered for element manipulation
-}
-
-function togglePause() {
-    g_isPaused = !g_isPaused;
-    if(g_isPaused)
-        $("#pause_unpause_button").innerHTML="Unpause";
-    else
-        $("#pause_unpause_button").innerHTML="Pause";
+function selectIndexChanged() {
+    var si = parseInt($(this).val());
+    si = Math.min(g_ElementCount-1, si);
+    si = Math.max($(this).prop("min"), si);
+    g_SelectIndex = si;
+    $(this).val(si);
 }
 
 function elementCountChanged() {
-
+    var si = parseInt($(this).val());
+    si = Math.min($(this).prop("max"), si);
+    si = Math.max($(this).prop("min"), si);
+    g_ElementCount = si;
+    $(this).val(si);
+    if(g_SelectIndex >= g_ElementCount) {
+        g_SelectIndex = g_ElementCount - 1;
+        $("#select_index").val(si-1);
+    }
+    initialize();
 }
 
 function delayChanged() {
     g_delay = $(this).val();//$("delay_slider").value;
-    console.log(g_delay);
-    $("#delay_display").html(g_delay);
 }

@@ -3,8 +3,8 @@
 /* page layout */
 body {
     font-family:'Bookman Old Style',Bookman,'URW Bookman L','Palatino Linotype',serif;
-    font-size: 17px;
-    background-color: #F0F0F0;
+    font-size: 16px;
+    background-color: #f0f0f0;
     color: #000;
     margin: 0;
     padding: 0;
@@ -12,6 +12,7 @@ body {
 
 div.page_title {
     font-size: 30px;
+    padding: 20px 0 10px;
     text-align: center; 
 }
 
@@ -27,7 +28,32 @@ div.body {
 }
 
 div.canvas {
-    width: 800px;
+    width: 850px;
     margin: 0 auto; 
+}
+
+.disabled {
+    color: #ddd;
+}
+
+#animation_options {
+    width: 850px;
+    margin: 0 auto;
+    
+}
+
+.body_header {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+code {
+    font-size: 14px;
+}
+
+
+.footer {
+    text-align: center;
+    font-size: 11px;
 }
 
